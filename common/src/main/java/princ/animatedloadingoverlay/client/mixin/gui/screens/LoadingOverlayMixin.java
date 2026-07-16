@@ -3,7 +3,7 @@ package princ.animatedloadingoverlay.client.mixin.gui.screens;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.LoadingOverlay;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.texture.MipmapStrategy;
@@ -76,40 +76,40 @@ public class LoadingOverlayMixin {
     }
 
     @Redirect(
-            method = "extractRenderState",
+            method = "render",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;blit(Lcom/mojang/blaze3d/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIFFIIIIIII)V",
+                    target = "Lnet/minecraft/client/gui/GuiGraphics;blit(Lcom/mojang/blaze3d/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIFFIIIIIII)V",
                     ordinal = 0
             )
     )
-    void animatedLoadingOverlay$blit(GuiGraphicsExtractor graphics, RenderPipeline renderPipeline, Identifier texture, int x, int y, float u, float v, int width, int height, int srcWidth, int srcHeight, int textureWidth, int textureHeight, int color) {
+    void animatedLoadingOverlay$blit(GuiGraphics graphics, RenderPipeline pipeline, Identifier atlas, int x, int y, float u, float v, int width, int height, int uWidth, int vHeight, int textureWidth, int textureHeight, int color) {
         this.animatedLoadingOverlay$blit(graphics);
     }
 
     @Redirect(
-            method = "extractRenderState",
+            method = "render",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;blit(Lcom/mojang/blaze3d/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIFFIIIIIII)V",
+                    target = "Lnet/minecraft/client/gui/GuiGraphics;blit(Lcom/mojang/blaze3d/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIFFIIIIIII)V",
                     ordinal = 1
             )
     )
-    void animatedLoadingOverlay$cancelBlit(GuiGraphicsExtractor graphics, RenderPipeline renderPipeline, Identifier texture, int x, int y, float u, float v, int width, int height, int srcWidth, int srcHeight, int textureWidth, int textureHeight, int color) {
+    void animatedLoadingOverlay$cancelBlit(GuiGraphics graphics, RenderPipeline pipeline, Identifier atlas, int x, int y, float u, float v, int width, int height, int uWidth, int vHeight, int textureWidth, int textureHeight, int color) {
     }
 
     @Redirect(
-            method = "extractRenderState",
+            method = "render",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;fill(IIIII)V"
+                    target = "Lnet/minecraft/client/gui/GuiGraphics;fill(IIIII)V"
             )
     )
-    void animatedLoadingOverlay$fill(GuiGraphicsExtractor graphics, int x0, int y0, int x1, int y1, int col) {
+    void animatedLoadingOverlay$fill(GuiGraphics instance, int minX, int minY, int maxX, int maxY, int color) {
     }
 
     @Unique
-    void animatedLoadingOverlay$blit(GuiGraphicsExtractor graphics) {
+    void animatedLoadingOverlay$blit(GuiGraphics graphics) {
         int screenWidth = graphics.guiWidth();
         int screenHeight = graphics.guiHeight();
         long now = Util.getMillis();

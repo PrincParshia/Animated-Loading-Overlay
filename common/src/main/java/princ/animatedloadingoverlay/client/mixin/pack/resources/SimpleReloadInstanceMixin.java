@@ -15,7 +15,7 @@ public class SimpleReloadInstanceMixin implements SimpleReloadInstanceDuck {
 
     @Shadow
     @Final
-    private CompletableFuture<Unit> allPreparations;
+    CompletableFuture<Unit> allPreparations;
 
     @Unique
     private boolean animatedLoadingOverlay$animationFinished;
