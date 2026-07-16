@@ -1,0 +1,41 @@
+{
+    "schemaVersion": 1,
+    "id": "${mod_id}",
+    "version": "${version}",
+    "name": "${mod_name}",
+    "description": "${description}",
+    "authors": [
+        "${mod_author}"
+    ],
+    "contact": {
+        "sources": "https://github.com/PrincParshia/Animated-Loading-Overlay"
+    },
+    "license": "${license}",
+    "icon": "${mod_id}.icon.png",
+    "environment": "client",
+    "entrypoints": {
+        "client": [
+            "princ.animatedloadingoverlay.client.FabricCMI"
+        ]
+    },
+    "mixins": [
+        "${mod_id}.mixins.json",
+        "${mod_id}.fabric.mixins.json"
+    ],
+    "depends": {
+        "fabricloader": ">=${fabric_loader_version}",
+        "fabric-api": "*",
+        "minecraft": ">=${minecraft_version_min} <=${minecraft_version_max}",
+        "java": ">=${java_version}"
+    },
+    "custom": {
+        "modmenu": {
+            "links": {
+                "modmenu.modrinth": "https://modrinth.com/mod/animated-loading-overlay",
+                "modmenu.curseforge": "https://www.curseforge.com/minecraft/mc-mods/animated-loading-overlay",
+                "modmenu.kofi": "https://ko-fi.com/princparshia"
+            }
+        }
+    }
+}
+  

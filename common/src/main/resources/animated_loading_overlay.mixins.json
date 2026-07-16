@@ -1,0 +1,18 @@
+{
+    "required": true,
+    "minVersion": "0.8",
+    "package": "princ.animatedloadingoverlay.client.mixin",
+    "compatibilityLevel": "JAVA_25",
+    "client": [
+        "gui.screens.LoadingOverlayMixin",
+        "pack.resources.PreparationBarrierMixin",
+        "pack.resources.SimpleReloadInstanceMixin"
+    ],
+    "injectors": {
+        "defaultRequire": 1
+    },
+    "overwrites": {
+        "requireAnnotations": true
+    }
+}
+
