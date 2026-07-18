@@ -1,31 +1,29 @@
 package princ.animatedloadingoverlay.client.mixin.gui.screens;
 
-import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.blaze3d.platform.NativeImage;
+import com.mojang.blaze3d.systems.RenderSystem;
+import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.LoadingOverlay;
-import net.minecraft.client.renderer.RenderPipelines;
-import net.minecraft.client.renderer.texture.MipmapStrategy;
-import net.minecraft.client.renderer.texture.ReloadableTexture;
-import net.minecraft.client.renderer.texture.TextureContents;
-import net.minecraft.client.renderer.texture.TextureManager;
+import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.texture.*;
 import net.minecraft.client.resources.metadata.texture.TextureMetadataSection;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ReloadInstance;
 import net.minecraft.server.packs.resources.ResourceManager;
-import net.minecraft.util.ARGB;
-import net.minecraft.util.Mth;
-import net.minecraft.util.Util;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.*;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import princ.animatedloadingoverlay.duck.pack.resources.SimpleReloadInstanceDuck;
+import princ.animatedloadingoverlay.client.duck.pack.resources.SimpleReloadInstanceDuck;
 import princ.animatedloadingoverlay.client.sounds.SoundInstance;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Optional;
@@ -39,16 +37,6 @@ public class LoadingOverlayMixin {
     @Shadow
     @Final
     private ReloadInstance reload;
-
-    @Shadow
-    @Final
-    private boolean fadeIn;
-
-    @Shadow
-    private long fadeOutStart;
-
-    @Shadow
-    private long fadeInStart;
 
     @Unique
     private long animatedLoadingOverlay$animationStart = -1L;
@@ -68,45 +56,57 @@ public class LoadingOverlayMixin {
     }
 
     @Inject(method = "registerTextures", at = @At("HEAD"))
-    private static void animatedLoadingOverlay$registerTextures(TextureManager textureManager, CallbackInfo callbackInfo) {
-        textureManager.registerAndLoad(BACKGROUND, new LogoTexture(BACKGROUND));
-        for (Identifier sheet : SHEETS) {
-            textureManager.registerAndLoad(sheet, new LogoTexture(sheet));
+    private static void animatedLoadingOverlay$registerTextures(Minecraft minecraft, CallbackInfo callbackInfo) {
+        minecraft.getTextureManager().register(BACKGROUND, new LogoTexture(BACKGROUND));
+        for (ResourceLocation sheet : SHEETS) {
+            minecraft.getTextureManager().register(sheet, new LogoTexture(sheet));
         }
     }
 
-    @Redirect(
+    @WrapOperation(
             method = "render",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/client/gui/GuiGraphics;blit(Lcom/mojang/blaze3d/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIFFIIIIIII)V",
+                    target = "Lnet/minecraft/client/gui/GuiGraphics;blit(Lnet/minecraft/resources/ResourceLocation;IIIIFFIIII)V",
                     ordinal = 0
             )
     )
-    void animatedLoadingOverlay$blit(GuiGraphics graphics, RenderPipeline pipeline, Identifier atlas, int x, int y, float u, float v, int width, int height, int uWidth, int vHeight, int textureWidth, int textureHeight, int color) {
+    void animatedLoadingOverlay$blit(GuiGraphics graphics, ResourceLocation atlasLocation, int x, int y, int width, int height, float uOffset, float vOffset, int uWidth, int vHeight, int textureWidth, int textureHeight, Operation<Void> original) {
         this.animatedLoadingOverlay$blit(graphics);
     }
 
-    @Redirect(
+    @WrapOperation(
             method = "render",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/client/gui/GuiGraphics;blit(Lcom/mojang/blaze3d/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIFFIIIIIII)V",
+                    target = "Lnet/minecraft/client/gui/GuiGraphics;blit(Lnet/minecraft/resources/ResourceLocation;IIIIFFIIII)V",
                     ordinal = 1
             )
     )
-    void animatedLoadingOverlay$cancelBlit(GuiGraphics graphics, RenderPipeline pipeline, Identifier atlas, int x, int y, float u, float v, int width, int height, int uWidth, int vHeight, int textureWidth, int textureHeight, int color) {
+    void animatedLoadingOverlay$wrapBlit(GuiGraphics graphics, ResourceLocation atlasLocation, int x, int y, int width, int height, float uOffset, float vOffset, int uWidth, int vHeight, int textureWidth, int textureHeight, Operation<Void> original) {
     }
 
-    @Redirect(
+    @WrapOperation(
             method = "render",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/client/gui/GuiGraphics;fill(IIIII)V"
+                    target = "Lnet/minecraft/client/gui/GuiGraphics;fill(Lnet/minecraft/client/renderer/RenderType;IIIII)V"
             )
     )
-    void animatedLoadingOverlay$fill(GuiGraphics instance, int minX, int minY, int maxX, int maxY, int color) {
+    void fill(GuiGraphics graphics, RenderType renderType, int minX, int minY, int maxX, int maxY, int color, Operation<Void> original) {
     }
+
+    @WrapOperation(
+            method = "render",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lcom/mojang/blaze3d/systems/RenderSystem;blendFunc(II)V"
+            )
+    )
+    void animatedLoadingOverlay$blendFunc(int sourceFactor, int destFactor, Operation<Void> original) {
+        RenderSystem.defaultBlendFunc();
+    }
+
 
     @Unique
     void animatedLoadingOverlay$blit(GuiGraphics graphics) {
@@ -125,39 +125,25 @@ public class LoadingOverlayMixin {
         int sheetIndex = frameIndex / FRAMES_PER_SHEET;
         int frameInSheet = frameIndex % FRAMES_PER_SHEET;
 
-        Identifier texture = SHEETS[sheetIndex];
-        boolean endSheet = sheetIndex == SHEET_COUNT - 1;
+        ResourceLocation texture = SHEETS[sheetIndex];
+        boolean lastSheet = sheetIndex == SHEET_COUNT - 1;
 
         int col = frameInSheet % COLS;
         int row = frameInSheet / COLS;
 
-        float u = endSheet ? 0f : col * FRAME_WIDTH;
-        float v = endSheet ? 0f : row * FRAME_HEIGHT;
+        float u = lastSheet ? 0.0F : col * FRAME_WIDTH;
+        float v = lastSheet ? 0.0F : row * FRAME_HEIGHT;
 
-        int textureWidth = endSheet ? FRAME_WIDTH : SHEET_WIDTH;
-        int textureHeight = endSheet ? FRAME_HEIGHT : SHEET_HEIGHT;
+        int textureWidth = lastSheet ? FRAME_WIDTH : SHEET_WIDTH;
+        int textureHeight = lastSheet ? FRAME_HEIGHT : SHEET_HEIGHT;
 
         int width = Math.round(screenWidth * SCALE);
         int height = Math.round(screenHeight * SCALE);
         int x = (screenWidth - width) / 2;
         int y = (screenHeight - height) / 2;
 
-        float fadeOutAnim = this.fadeOutStart > -1L ? (float) (now - this.fadeOutStart) / 1000.0F : -1.0F;
-        float fadeInAnim = this.fadeInStart > -1L ? (float) (now - this.fadeInStart) / 500.0F : -1.0F;
-        float logoAlpha;
-
-        if (fadeOutAnim >= 1.0F) {
-            logoAlpha = 1.0F - Mth.clamp(fadeOutAnim - 1.0F, 0.0F, 1.0F);
-        } else if (this.fadeIn) {
-            logoAlpha = Mth.clamp(fadeInAnim, 0.0F, 1.0F);
-        } else {
-            logoAlpha = 1.0F;
-        }
-
-        int color = ARGB.white(logoAlpha);
-
-        graphics.blit(RenderPipelines.GUI_TEXTURED, BACKGROUND, 0, 0, 0.0F, 0.0F, screenWidth, screenHeight, screenWidth, screenHeight, screenWidth, screenHeight, color);
-        graphics.blit(RenderPipelines.GUI_TEXTURED, texture, x, y, u, v, width, height, FRAME_WIDTH, FRAME_HEIGHT, textureWidth, textureHeight, color);
+        graphics.blit(BACKGROUND, 0, 0, 0.0F, 0.0F, screenWidth, screenHeight, screenWidth, screenHeight);
+        graphics.blit(texture, x, y, width, height, u, v, FRAME_WIDTH, FRAME_HEIGHT, textureWidth, textureHeight);
 
         if (frameIndex >= FRAMES - 1) {
             if (this.reload instanceof SimpleReloadInstanceDuck reloadDuck) {
@@ -166,22 +152,24 @@ public class LoadingOverlayMixin {
         }
     }
 
-    private static class LogoTexture extends ReloadableTexture {
-        private final Identifier texture;
+    private static class LogoTexture extends SimpleTexture {
+        private final ResourceLocation texture;
 
-        public LogoTexture(Identifier texture) {
+        public LogoTexture(ResourceLocation texture) {
             super(texture);
             this.texture = texture;
         }
 
         @Override
-        public TextureContents loadContents(ResourceManager resourceManager) throws IOException {
+        protected TextureImage getTextureImage(ResourceManager resourceManager) {
             String path = "assets/" + this.texture.getNamespace() + "/" + this.texture.getPath();
             try (InputStream resource = LogoTexture.class.getClassLoader().getResourceAsStream(path)) {
                 if (resource == null) {
-                    throw new IOException();
+                    return new TextureImage(new FileNotFoundException(path));
                 }
-                return new TextureContents(NativeImage.read(resource), new TextureMetadataSection(false, false, MipmapStrategy.MEAN, 0.0F));
+                return new TextureImage(new TextureMetadataSection(false, false), NativeImage.read(resource));
+            } catch (IOException e) {
+                return new TextureImage(e);
             }
         }
     }

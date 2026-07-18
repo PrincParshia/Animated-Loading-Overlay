@@ -6,7 +6,7 @@ import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
-import princ.animatedloadingoverlay.duck.pack.resources.SimpleReloadInstanceDuck;
+import princ.animatedloadingoverlay.client.duck.pack.resources.SimpleReloadInstanceDuck;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -15,7 +15,7 @@ public class SimpleReloadInstanceMixin implements SimpleReloadInstanceDuck {
 
     @Shadow
     @Final
-    CompletableFuture<Unit> allPreparations;
+    protected CompletableFuture<Unit> allPreparations;
 
     @Unique
     private boolean animatedLoadingOverlay$animationFinished;

@@ -1,7 +1,7 @@
 package princ.animatedloadingoverlay.client.sounds;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 
@@ -25,13 +25,13 @@ public class SoundInstance {
         }
     }
 
-    public void loadAsync(Minecraft minecraft, Identifier soundId, String name) {
+    public void loadAsync(Minecraft minecraft, ResourceLocation soundId, String name) {
         Thread thread = new Thread(() -> load(minecraft, soundId), name);
         thread.setDaemon(true);
         thread.start();
     }
 
-    public void load(Minecraft minecraft, Identifier soundId) {
+    public void load(Minecraft minecraft, ResourceLocation soundId) {
         minecraft.getResourceManager().getResource(soundId).ifPresent(resource -> {
             try (InputStream inputStream = resource.open(); BufferedInputStream bufferedInputStream = new BufferedInputStream(inputStream); AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(bufferedInputStream)) {
                 Clip clip = AudioSystem.getClip();
@@ -39,7 +39,7 @@ public class SoundInstance {
 
                 FloatControl volume = (FloatControl) clip.getControl(FloatControl.Type.MASTER_GAIN);
                 float masterVolume = minecraft.options.getSoundSourceVolume(SoundSource.MASTER);
-                float uiVolume = minecraft.options.getSoundSourceVolume(SoundSource.UI);
+                float uiVolume = minecraft.options.getSoundSourceVolume(SoundSource.MUSIC);
                 float linearVolume = masterVolume * uiVolume;
 
                 if (linearVolume <= 0.0001F) {

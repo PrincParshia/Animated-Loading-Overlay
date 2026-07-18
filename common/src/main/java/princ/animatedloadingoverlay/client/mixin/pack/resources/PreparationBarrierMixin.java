@@ -2,18 +2,18 @@ package princ.animatedloadingoverlay.client.mixin.pack.resources;
 
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.LoadingOverlay;
 import net.minecraft.server.packs.resources.SimpleReloadInstance;
 import net.minecraft.util.Unit;
-import org.spongepowered.asm.mixin.Debug;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
-import princ.animatedloadingoverlay.duck.pack.resources.SimpleReloadInstanceDuck;
+import princ.animatedloadingoverlay.client.duck.pack.resources.SimpleReloadInstanceDuck;
 
 import java.util.concurrent.CompletableFuture;
 
-@Debug(export = true)
 @Mixin(targets = "net/minecraft/server/packs/resources/SimpleReloadInstance$1")
 public class PreparationBarrierMixin {
 
@@ -29,10 +29,13 @@ public class PreparationBarrierMixin {
             )
     )
     boolean animatedLoadingOverlay$delayCompletion(CompletableFuture<Unit> allPreparations, Object value, Operation<Boolean> original) {
-        SimpleReloadInstanceDuck duck = (SimpleReloadInstanceDuck) this.field_18053;
+        Minecraft minecraft = Minecraft.getInstance();
 
-        if (!duck.animatedLoadingOverlay$animationFinished()) {
-            return true;
+        if (minecraft.getOverlay() instanceof LoadingOverlay) {
+            SimpleReloadInstanceDuck duck = (SimpleReloadInstanceDuck) this.field_18053;
+            if (!duck.animatedLoadingOverlay$animationFinished()) {
+                return true;
+            }
         }
 
         return original.call(allPreparations, value);
