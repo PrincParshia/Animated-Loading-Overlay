@@ -5,9 +5,8 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
 
 @Mod(value = Constants.NAMESPACE, dist = Dist.CLIENT)
-public class NeoForgeCMI {
+public class AnimatedLoadingOverlay {
 
-    public NeoForgeCMI(IEventBus eventBus) {
-        AnimatedLoadingOverlay.init();
+    public AnimatedLoadingOverlay(IEventBus eventBus) {
     }
 }
