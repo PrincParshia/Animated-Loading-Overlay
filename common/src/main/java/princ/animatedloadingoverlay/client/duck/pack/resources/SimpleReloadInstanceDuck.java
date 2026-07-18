@@ -1,4 +1,4 @@
-package princ.animatedloadingoverlay.duck.pack.resources;
+package princ.animatedloadingoverlay.client.duck.pack.resources;
 
 public interface SimpleReloadInstanceDuck {
     boolean animatedLoadingOverlay$animationFinished();
