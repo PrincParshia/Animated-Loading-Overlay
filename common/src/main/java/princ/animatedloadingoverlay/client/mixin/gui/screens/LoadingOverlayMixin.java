@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Optional;
 import java.util.function.Consumer;
+import java.util.function.IntSupplier;
 
 import static princ.animatedloadingoverlay.client.Constants.*;
 
@@ -40,7 +41,26 @@ public class LoadingOverlayMixin {
 
     @Shadow
     @Final
+    private static IntSupplier BRAND_BACKGROUND;
+
+    @Shadow
+    @Final
     private ReloadInstance reload;
+
+    @Shadow
+    @Final
+    private boolean fadeIn;
+
+    @Shadow
+    private long fadeOutStart;
+
+    @Shadow
+    private long fadeInStart;
+
+    @Shadow
+    private static int replaceAlpha(int color, int alpha) {
+        throw new UnsupportedOperationException("Implemented via mixin");
+    }
 
     @Unique
     private long animatedLoadingOverlay$animationStart = -1L;
@@ -61,7 +81,6 @@ public class LoadingOverlayMixin {
 
     @Inject(method = "registerTextures", at = @At("HEAD"))
     private static void animatedLoadingOverlay$registerTextures(TextureManager textureManager, CallbackInfo callbackInfo) {
-        textureManager.registerAndLoad(BACKGROUND, new LogoTexture(BACKGROUND));
         for (Identifier sheet : SHEETS) {
             textureManager.registerAndLoad(sheet, new LogoTexture(sheet));
         }
@@ -75,8 +94,8 @@ public class LoadingOverlayMixin {
                     ordinal = 0
             )
     )
-    void animatedLoadingOverlay$blit(GuiGraphicsExtractor graphics, RenderPipeline renderPipeline, Identifier texture, int x, int y, float u, float v, int width, int height, int srcWidth, int srcHeight, int textureWidth, int textureHeight, int color, Operation<Void> original) {
-        this.animatedLoadingOverlay$blit(graphics, color);
+    void animatedLoadingOverlay$extractRenderState(GuiGraphicsExtractor graphics, RenderPipeline renderPipeline, Identifier texture, int x, int y, float u, float v, int width, int height, int srcWidth, int srcHeight, int textureWidth, int textureHeight, int color, Operation<Void> original) {
+        this.animatedLoadingOverlay$extractRenderState(graphics);
     }
 
     @WrapOperation(
@@ -87,7 +106,7 @@ public class LoadingOverlayMixin {
                     ordinal = 1
             )
     )
-    void animatedLoadingOverlay$cancelBlit(GuiGraphicsExtractor graphics, RenderPipeline renderPipeline, Identifier texture, int x, int y, float u, float v, int width, int height, int srcWidth, int srcHeight, int textureWidth, int textureHeight, int color, Operation<Void> original) {
+    void animatedLoadingOverlay$blit(GuiGraphicsExtractor graphics, RenderPipeline renderPipeline, Identifier texture, int x, int y, float u, float v, int width, int height, int srcWidth, int srcHeight, int textureWidth, int textureHeight, int color, Operation<Void> original) {
     }
 
     @WrapOperation(
@@ -101,7 +120,7 @@ public class LoadingOverlayMixin {
     }
 
     @Unique
-    void animatedLoadingOverlay$blit(GuiGraphicsExtractor graphics, int color) {
+    void animatedLoadingOverlay$extractRenderState(GuiGraphicsExtractor graphics) {
         int screenWidth = graphics.guiWidth();
         int screenHeight = graphics.guiHeight();
         long now = Util.getMillis();
@@ -134,7 +153,28 @@ public class LoadingOverlayMixin {
         int x = (screenWidth - width) / 2;
         int y = (screenHeight - height) / 2;
 
-        graphics.blit(RenderPipelines.GUI_TEXTURED, BACKGROUND, 0, 0, 0.0F, 0.0F, screenWidth, screenHeight, screenWidth, screenHeight, screenWidth, screenHeight, color);
+        float fadeOutAnim = this.fadeOutStart > -1L ? (float) (now - this.fadeOutStart) / 1000.0F : -1.0F;
+        float fadeInAnim = this.fadeInStart > -1L ? (float) (now - this.fadeInStart) / 500.0F : -1.0F;
+        float logoAlpha;
+
+        if (fadeOutAnim >= 1.0F) {
+            logoAlpha = 1.0F - Mth.clamp(fadeOutAnim - 1.0F, 0.0F, 1.0F);
+        } else if (this.fadeIn) {
+            logoAlpha = Mth.clamp(fadeInAnim, 0.0F, 1.0F);
+        } else {
+            logoAlpha = 1.0F;
+        }
+
+        int alpha = Mth.ceil(logoAlpha * 255.0F);
+        int fillColor = replaceAlpha(BRAND_BACKGROUND.getAsInt(), alpha);
+
+        graphics.fill(0, 0, screenWidth, y, fillColor);
+        graphics.fill(0, y + height, screenWidth, screenHeight, fillColor);
+        graphics.fill(0, y, x, y + height, fillColor);
+        graphics.fill(x + width, y, screenWidth, y + height, fillColor);
+
+        int color = ARGB.white(logoAlpha);
+
         graphics.blit(RenderPipelines.GUI_TEXTURED, texture, x, y, u, v, width, height, FRAME_WIDTH, FRAME_HEIGHT, textureWidth, textureHeight, color);
 
         if (frameIndex >= FRAMES - 1) {

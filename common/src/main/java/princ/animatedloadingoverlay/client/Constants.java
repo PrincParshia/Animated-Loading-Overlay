@@ -23,9 +23,8 @@ public class Constants {
     public static final int SHEET_WIDTH = COLS * FRAME_WIDTH;
     public static final int SHEET_HEIGHT = ROWS * FRAME_HEIGHT;
 
-    public static final float SCALE = 1280f / 1920f;
+    public static final float SCALE = 2.0F / 3.0F;
 
-    public static final Identifier BACKGROUND = withDefaultNamespace("textures/gui/title/0.png");
     public static final Identifier[] SHEETS = new Identifier[SHEET_COUNT];
 
     static {

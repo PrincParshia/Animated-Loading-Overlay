@@ -33,7 +33,6 @@ public class PreparationBarrierMixin {
 
         if (minecraft.gui.overlay() instanceof LoadingOverlay) {
             SimpleReloadInstanceDuck duck = (SimpleReloadInstanceDuck) this.this$0;
-
             if (!duck.animatedLoadingOverlay$animationFinished()) {
                 return true;
             }
