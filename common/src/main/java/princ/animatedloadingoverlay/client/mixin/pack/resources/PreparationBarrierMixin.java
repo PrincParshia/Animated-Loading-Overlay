@@ -6,7 +6,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.LoadingOverlay;
 import net.minecraft.server.packs.resources.SimpleReloadInstance;
 import net.minecraft.util.Unit;
-import org.spongepowered.asm.mixin.Debug;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -15,16 +14,15 @@ import princ.animatedloadingoverlay.client.duck.pack.resources.SimpleReloadInsta
 
 import java.util.concurrent.CompletableFuture;
 
-@Debug(export = true)
 @Mixin(targets = "net/minecraft/server/packs/resources/SimpleReloadInstance$1")
 public class PreparationBarrierMixin {
 
-    @Shadow
+    @Shadow(aliases = "field_18053")
     @Final
-    SimpleReloadInstance<?> field_18053;
+    SimpleReloadInstance<?> this$0;
 
     @WrapOperation(
-            method = "method_18374",
+            method = {"method_18374", "lambda$wait$0"},
             at = @At(
                     value = "INVOKE",
                     target = "Ljava/util/concurrent/CompletableFuture;complete(Ljava/lang/Object;)Z"
@@ -34,8 +32,7 @@ public class PreparationBarrierMixin {
         Minecraft minecraft = Minecraft.getInstance();
 
         if (minecraft.getOverlay() instanceof LoadingOverlay) {
-            SimpleReloadInstanceDuck duck = (SimpleReloadInstanceDuck) this.field_18053;
-
+            SimpleReloadInstanceDuck duck = (SimpleReloadInstanceDuck) this.this$0;
             if (!duck.animatedLoadingOverlay$animationFinished()) {
                 return true;
             }
