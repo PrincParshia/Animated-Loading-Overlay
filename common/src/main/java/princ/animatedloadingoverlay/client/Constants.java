@@ -25,7 +25,6 @@ public class Constants {
 
     public static final float SCALE = 1280f / 1920f;
 
-    public static final ResourceLocation BACKGROUND = withDefaultNamespace("textures/gui/title/0.png");
     public static final ResourceLocation[] SHEETS = new ResourceLocation[SHEET_COUNT];
 
     static {

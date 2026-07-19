@@ -17,12 +17,12 @@ import java.util.concurrent.CompletableFuture;
 @Mixin(targets = "net/minecraft/server/packs/resources/SimpleReloadInstance$1")
 public class PreparationBarrierMixin {
 
-    @Shadow
+    @Shadow(aliases = "field_18053")
     @Final
-    SimpleReloadInstance<?> field_18053;
+    SimpleReloadInstance<?> this$0;
 
     @WrapOperation(
-            method = "method_18374",
+            method = { "method_18374", "lambda$wait$0" },
             at = @At(
                     value = "INVOKE",
                     target = "Ljava/util/concurrent/CompletableFuture;complete(Ljava/lang/Object;)Z"
@@ -31,8 +31,8 @@ public class PreparationBarrierMixin {
     boolean animatedLoadingOverlay$delayCompletion(CompletableFuture<Unit> allPreparations, Object value, Operation<Boolean> original) {
         Minecraft minecraft = Minecraft.getInstance();
 
-        if (minecraft.getOverlay() instanceof LoadingOverlay) {
-            SimpleReloadInstanceDuck duck = (SimpleReloadInstanceDuck) this.field_18053;
+        if (minecraft.getOverlay() != null && minecraft.getOverlay().getClass().equals(LoadingOverlay.class)) {
+            SimpleReloadInstanceDuck duck = (SimpleReloadInstanceDuck) this.this$0;
             if (!duck.animatedLoadingOverlay$animationFinished()) {
                 return true;
             }

@@ -14,6 +14,7 @@ import net.minecraft.client.resources.metadata.texture.TextureMetadataSection;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ReloadInstance;
 import net.minecraft.server.packs.resources.ResourceManager;
+import net.minecraft.util.Mth;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -28,6 +29,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Optional;
 import java.util.function.Consumer;
+import java.util.function.IntSupplier;
 
 import static princ.animatedloadingoverlay.client.Constants.*;
 
@@ -36,7 +38,26 @@ public class LoadingOverlayMixin {
 
     @Shadow
     @Final
+    private static IntSupplier BRAND_BACKGROUND;
+
+    @Shadow
+    @Final
     private ReloadInstance reload;
+
+    @Shadow
+    @Final
+    private boolean fadeIn;
+
+    @Shadow
+    private long fadeOutStart;
+
+    @Shadow
+    private long fadeInStart;
+
+    @Shadow
+    private static int replaceAlpha(int color, int alpha) {
+        throw new UnsupportedOperationException("Implemented via mixin");
+    }
 
     @Unique
     private long animatedLoadingOverlay$animationStart = -1L;
@@ -57,7 +78,6 @@ public class LoadingOverlayMixin {
 
     @Inject(method = "registerTextures", at = @At("HEAD"))
     private static void animatedLoadingOverlay$registerTextures(Minecraft minecraft, CallbackInfo callbackInfo) {
-        minecraft.getTextureManager().register(BACKGROUND, new LogoTexture(BACKGROUND));
         for (ResourceLocation sheet : SHEETS) {
             minecraft.getTextureManager().register(sheet, new LogoTexture(sheet));
         }
@@ -71,8 +91,8 @@ public class LoadingOverlayMixin {
                     ordinal = 0
             )
     )
-    void animatedLoadingOverlay$blit(GuiGraphics graphics, ResourceLocation atlasLocation, int x, int y, int width, int height, float uOffset, float vOffset, int uWidth, int vHeight, int textureWidth, int textureHeight, Operation<Void> original) {
-        this.animatedLoadingOverlay$blit(graphics);
+    void animatedLoadingOverlay$extractRenderState(GuiGraphics graphics, ResourceLocation atlasLocation, int x, int y, int width, int height, float uOffset, float vOffset, int uWidth, int vHeight, int textureWidth, int textureHeight, Operation<Void> original) {
+        this.animatedLoadingOverlay$extractRenderState(graphics);
     }
 
     @WrapOperation(
@@ -83,7 +103,7 @@ public class LoadingOverlayMixin {
                     ordinal = 1
             )
     )
-    void animatedLoadingOverlay$wrapBlit(GuiGraphics graphics, ResourceLocation atlasLocation, int x, int y, int width, int height, float uOffset, float vOffset, int uWidth, int vHeight, int textureWidth, int textureHeight, Operation<Void> original) {
+    void animatedLoadingOverlay$blit(GuiGraphics graphics, ResourceLocation atlasLocation, int x, int y, int width, int height, float uOffset, float vOffset, int uWidth, int vHeight, int textureWidth, int textureHeight, Operation<Void> original) {
     }
 
     @WrapOperation(
@@ -94,6 +114,34 @@ public class LoadingOverlayMixin {
             )
     )
     void fill(GuiGraphics graphics, RenderType renderType, int minX, int minY, int maxX, int maxY, int color, Operation<Void> original) {
+        int screenWidth = graphics.guiWidth();
+        int screenHeight = graphics.guiHeight();
+        long now = Util.getMillis();
+
+        float fadeOutAnim = this.fadeOutStart > -1L ? (float) (now - this.fadeOutStart) / 1000.0F : -1.0F;
+        float fadeInAnim = this.fadeInStart > -1L ? (float) (now - this.fadeInStart) / 500.0F : -1.0F;
+        float logoAlpha;
+
+        int width = Math.round(screenWidth * SCALE);
+        int height = Math.round(screenHeight * SCALE);
+        int x = (screenWidth - width) / 2;
+        int y = (screenHeight - height) / 2;
+
+        if (fadeOutAnim >= 1.0F) {
+            logoAlpha = 1.0F - Mth.clamp(fadeOutAnim - 1.0F, 0.0F, 1.0F);
+        } else if (this.fadeIn) {
+            logoAlpha = Mth.clamp(fadeInAnim, 0.0F, 1.0F);
+        } else {
+            logoAlpha = 1.0F;
+        }
+
+        int alpha = Mth.ceil(logoAlpha * 255.0F);
+        int fillColor = replaceAlpha(BRAND_BACKGROUND.getAsInt(), alpha);
+
+        graphics.fill(RenderType.guiOverlay(), 0, 0, screenWidth, y, fillColor);
+        graphics.fill(RenderType.guiOverlay(), 0, y + height, screenWidth, screenHeight, fillColor);
+        graphics.fill(RenderType.guiOverlay(), 0, y, x, y + height, fillColor);
+        graphics.fill(RenderType.guiOverlay(), x + width, y, screenWidth, y + height, fillColor);
     }
 
     @WrapOperation(
@@ -109,7 +157,7 @@ public class LoadingOverlayMixin {
 
 
     @Unique
-    void animatedLoadingOverlay$blit(GuiGraphics graphics) {
+    void animatedLoadingOverlay$extractRenderState(GuiGraphics graphics) {
         int screenWidth = graphics.guiWidth();
         int screenHeight = graphics.guiHeight();
         long now = Util.getMillis();
@@ -142,7 +190,6 @@ public class LoadingOverlayMixin {
         int x = (screenWidth - width) / 2;
         int y = (screenHeight - height) / 2;
 
-        graphics.blit(BACKGROUND, 0, 0, 0.0F, 0.0F, screenWidth, screenHeight, screenWidth, screenHeight);
         graphics.blit(texture, x, y, width, height, u, v, FRAME_WIDTH, FRAME_HEIGHT, textureWidth, textureHeight);
 
         if (frameIndex >= FRAMES - 1) {
