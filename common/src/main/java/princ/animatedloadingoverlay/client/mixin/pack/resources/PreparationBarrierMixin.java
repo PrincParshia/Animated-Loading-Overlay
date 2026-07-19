@@ -31,7 +31,7 @@ public class PreparationBarrierMixin {
     boolean animatedLoadingOverlay$delayCompletion(CompletableFuture<Unit> allPreparations, Object value, Operation<Boolean> original) {
         Minecraft minecraft = Minecraft.getInstance();
 
-        if (minecraft.gui.overlay() instanceof LoadingOverlay) {
+        if (minecraft.getOverlay() instanceof LoadingOverlay) {
             SimpleReloadInstanceDuck duck = (SimpleReloadInstanceDuck) this.this$0;
             if (!duck.animatedLoadingOverlay$animationFinished()) {
                 return true;
