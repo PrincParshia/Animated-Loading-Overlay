@@ -27,18 +27,18 @@ import princ.animatedloadingoverlay.client.sounds.SoundInstance;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Path;
 import java.util.Optional;
 import java.util.function.Consumer;
-import java.util.function.IntSupplier;
 
 import static princ.animatedloadingoverlay.client.Constants.*;
 
-@Mixin(LoadingOverlay.class)
+@Mixin(value = LoadingOverlay.class, priority = 5000)
 public class LoadingOverlayMixin {
 
     @Shadow
     @Final
-    private static IntSupplier BRAND_BACKGROUND;
+    private static int LOGO_BACKGROUND_COLOR;
 
     @Shadow
     @Final
@@ -60,17 +60,14 @@ public class LoadingOverlayMixin {
     }
 
     @Unique
-    private long animatedLoadingOverlay$animationStart = -1L;
+    long animatedLoadingOverlay$animationStart = -1L;
 
     @Unique
-    private SoundInstance animatedLoadingOverlay$sound;
+    SoundInstance animatedLoadingOverlay$sound;
 
 
     @Inject(method = "<init>", at = @At("TAIL"))
     void animatedLoadingOverlay$init(Minecraft minecraft, ReloadInstance reload, Consumer<Optional<Throwable>> onFinish, boolean fadeIn, CallbackInfo callbackInfo) {
-        if (this.reload instanceof SimpleReloadInstanceDuck reloadDuck) {
-            reloadDuck.animatedLoadingOverlay$animationFinished(false);
-        }
         SoundInstance sound = new SoundInstance();
         sound.load(minecraft, SOUND);
         this.animatedLoadingOverlay$sound = sound;
@@ -91,8 +88,8 @@ public class LoadingOverlayMixin {
                     ordinal = 0
             )
     )
-    void animatedLoadingOverlay$extractRenderState(GuiGraphics graphics, ResourceLocation atlasLocation, int x, int y, int width, int height, float uOffset, float vOffset, int uWidth, int vHeight, int textureWidth, int textureHeight, Operation<Void> original) {
-        this.animatedLoadingOverlay$extractRenderState(graphics);
+    void animatedLoadingOverlay$blit(GuiGraphics graphics, ResourceLocation atlasLocation, int x, int y, int width, int height, float uOffset, float vOffset, int uWidth, int vHeight, int textureWidth, int textureHeight, Operation<Void> original) {
+        this.animatedLoadingOverlay$blit(graphics);
     }
 
     @WrapOperation(
@@ -103,7 +100,7 @@ public class LoadingOverlayMixin {
                     ordinal = 1
             )
     )
-    void animatedLoadingOverlay$blit(GuiGraphics graphics, ResourceLocation atlasLocation, int x, int y, int width, int height, float uOffset, float vOffset, int uWidth, int vHeight, int textureWidth, int textureHeight, Operation<Void> original) {
+    void animatedLoadingOverlay$skipBlit(GuiGraphics graphics, ResourceLocation atlasLocation, int x, int y, int width, int height, float uOffset, float vOffset, int uWidth, int vHeight, int textureWidth, int textureHeight, Operation<Void> original) {
     }
 
     @WrapOperation(
@@ -114,34 +111,7 @@ public class LoadingOverlayMixin {
             )
     )
     void fill(GuiGraphics graphics, RenderType renderType, int minX, int minY, int maxX, int maxY, int color, Operation<Void> original) {
-        int screenWidth = graphics.guiWidth();
-        int screenHeight = graphics.guiHeight();
-        long now = Util.getMillis();
-
-        float fadeOutAnim = this.fadeOutStart > -1L ? (float) (now - this.fadeOutStart) / 1000.0F : -1.0F;
-        float fadeInAnim = this.fadeInStart > -1L ? (float) (now - this.fadeInStart) / 500.0F : -1.0F;
-        float logoAlpha;
-
-        int width = Math.round(screenWidth * SCALE);
-        int height = Math.round(screenHeight * SCALE);
-        int x = (screenWidth - width) / 2;
-        int y = (screenHeight - height) / 2;
-
-        if (fadeOutAnim >= 1.0F) {
-            logoAlpha = 1.0F - Mth.clamp(fadeOutAnim - 1.0F, 0.0F, 1.0F);
-        } else if (this.fadeIn) {
-            logoAlpha = Mth.clamp(fadeInAnim, 0.0F, 1.0F);
-        } else {
-            logoAlpha = 1.0F;
-        }
-
-        int alpha = Mth.ceil(logoAlpha * 255.0F);
-        int fillColor = replaceAlpha(BRAND_BACKGROUND.getAsInt(), alpha);
-
-        graphics.fill(RenderType.guiOverlay(), 0, 0, screenWidth, y, fillColor);
-        graphics.fill(RenderType.guiOverlay(), 0, y + height, screenWidth, screenHeight, fillColor);
-        graphics.fill(RenderType.guiOverlay(), 0, y, x, y + height, fillColor);
-        graphics.fill(RenderType.guiOverlay(), x + width, y, screenWidth, y + height, fillColor);
+        this.animatedLoadingOverlay$fill(graphics);
     }
 
     @WrapOperation(
@@ -157,7 +127,7 @@ public class LoadingOverlayMixin {
 
 
     @Unique
-    void animatedLoadingOverlay$extractRenderState(GuiGraphics graphics) {
+    void animatedLoadingOverlay$blit(GuiGraphics graphics) {
         int screenWidth = graphics.guiWidth();
         int screenHeight = graphics.guiHeight();
         long now = Util.getMillis();
@@ -165,6 +135,9 @@ public class LoadingOverlayMixin {
         if (this.animatedLoadingOverlay$animationStart == -1L) {
             this.animatedLoadingOverlay$animationStart = now;
             this.animatedLoadingOverlay$sound.play();
+            if (this.reload instanceof SimpleReloadInstanceDuck reloadDuck) {
+                reloadDuck.animatedLoadingOverlay$animationFinished(false);
+            }
         }
 
         long frame = ((now - this.animatedLoadingOverlay$animationStart) * FPS) / 1000L;
@@ -199,7 +172,38 @@ public class LoadingOverlayMixin {
         }
     }
 
-    private static class LogoTexture extends SimpleTexture {
+    @Unique
+    void animatedLoadingOverlay$fill(GuiGraphics graphics) {
+        int screenWidth = graphics.guiWidth();
+        int screenHeight = graphics.guiHeight();
+        long now = Util.getMillis();
+
+        int width = Math.round(screenWidth * SCALE);
+        int height = Math.round(screenHeight * SCALE);
+        int x = (screenWidth - width) / 2;
+        int y = (screenHeight - height) / 2;
+
+        float fadeOutAnim = this.fadeOutStart > -1L ? (float) (now - this.fadeOutStart) / 1000.0F : -1.0F;
+        float fadeInAnim = this.fadeInStart > -1L ? (float) (now - this.fadeInStart) / 500.0F : -1.0F;
+        int alpha;
+
+        if (fadeOutAnim >= 1.0F) {
+            alpha = Mth.ceil((1.0F - Mth.clamp(fadeOutAnim - 1.0F, 0.0F, 1.0F)) * 255);
+        } else if (this.fadeIn) {
+            alpha = Mth.ceil(Mth.clamp(fadeInAnim, 0.0F, 1.0F) * 255);
+        } else {
+            alpha = 255;
+        }
+
+        int color = replaceAlpha(LOGO_BACKGROUND_COLOR, alpha);
+
+        graphics.fill(RenderType.guiOverlay(), 0, 0, screenWidth, y, color);
+        graphics.fill(RenderType.guiOverlay(), 0, y + height, screenWidth, screenHeight, color);
+        graphics.fill(RenderType.guiOverlay(), 0, y, x, y + height, color);
+        graphics.fill(RenderType.guiOverlay(), x + width, y, screenWidth, y + height, color);
+    }
+
+    static class LogoTexture extends SimpleTexture {
         private final ResourceLocation texture;
 
         public LogoTexture(ResourceLocation texture) {
@@ -209,14 +213,14 @@ public class LoadingOverlayMixin {
 
         @Override
         protected TextureImage getTextureImage(ResourceManager resourceManager) {
-            String path = "assets/" + this.texture.getNamespace() + "/" + this.texture.getPath();
-            try (InputStream resource = LogoTexture.class.getClassLoader().getResourceAsStream(path)) {
+            Path path = Path.of("assets/", this.texture.getNamespace(), this.texture.getPath());
+            try (InputStream resource = this.getClass().getClassLoader().getResourceAsStream(path.toString())) {
                 if (resource == null) {
-                    return new TextureImage(new FileNotFoundException(path));
+                    return new TextureImage(new FileNotFoundException());
                 }
-                return new TextureImage(new TextureMetadataSection(false, false), NativeImage.read(resource));
-            } catch (IOException e) {
-                return new TextureImage(e);
+                return new TextureImage(new TextureMetadataSection(true, true), NativeImage.read(resource));
+            } catch (IOException ioException) {
+                return new TextureImage(ioException);
             }
         }
     }

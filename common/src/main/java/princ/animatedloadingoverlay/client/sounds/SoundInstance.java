@@ -19,18 +19,6 @@ public class SoundInstance {
         }
     }
 
-    public void stop() {
-        if (this.clip != null) {
-            this.clip.stop();
-        }
-    }
-
-    public void loadAsync(Minecraft minecraft, ResourceLocation soundId, String name) {
-        Thread thread = new Thread(() -> load(minecraft, soundId), name);
-        thread.setDaemon(true);
-        thread.start();
-    }
-
     public void load(Minecraft minecraft, ResourceLocation soundId) {
         minecraft.getResourceManager().getResource(soundId).ifPresent(resource -> {
             try (InputStream inputStream = resource.open(); BufferedInputStream bufferedInputStream = new BufferedInputStream(inputStream); AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(bufferedInputStream)) {
@@ -39,8 +27,8 @@ public class SoundInstance {
 
                 FloatControl volume = (FloatControl) clip.getControl(FloatControl.Type.MASTER_GAIN);
                 float masterVolume = minecraft.options.getSoundSourceVolume(SoundSource.MASTER);
-                float uiVolume = minecraft.options.getSoundSourceVolume(SoundSource.MUSIC);
-                float linearVolume = masterVolume * uiVolume;
+                float musicVolume = minecraft.options.getSoundSourceVolume(SoundSource.MUSIC);
+                float linearVolume = masterVolume * musicVolume;
 
                 if (linearVolume <= 0.0001F) {
                     volume.setValue(volume.getMinimum());
