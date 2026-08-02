@@ -19,18 +19,6 @@ public class SoundInstance {
         }
     }
 
-    public void stop() {
-        if (this.clip != null) {
-            this.clip.stop();
-        }
-    }
-
-    public void loadAsync(Minecraft minecraft, Identifier soundId, String name) {
-        Thread thread = new Thread(() -> load(minecraft, soundId), name);
-        thread.setDaemon(true);
-        thread.start();
-    }
-
     public void load(Minecraft minecraft, Identifier soundId) {
         minecraft.getResourceManager().getResource(soundId).ifPresent(resource -> {
             try (InputStream inputStream = resource.open(); BufferedInputStream bufferedInputStream = new BufferedInputStream(inputStream); AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(bufferedInputStream)) {
