@@ -14,6 +14,9 @@ public class Constants {
     public static final int FPS = 30;
     public static final int FRAMES = 129;
 
+    public static final float ASPECT_RATIO = 16.0F / 9.0F;
+    public static final float SCALE = 2.0F / 3.0F;
+
     public static final int FRAME_WIDTH = 1280;
     public static final int FRAME_HEIGHT = 720;
     public static final int COLS = 4;
@@ -22,8 +25,6 @@ public class Constants {
     public static final int SHEET_COUNT = 5;
     public static final int SHEET_WIDTH = COLS * FRAME_WIDTH;
     public static final int SHEET_HEIGHT = ROWS * FRAME_HEIGHT;
-
-    public static final float SCALE = 2.0F / 3.0F;
 
     public static final Identifier[] SHEETS = new Identifier[SHEET_COUNT];
 
