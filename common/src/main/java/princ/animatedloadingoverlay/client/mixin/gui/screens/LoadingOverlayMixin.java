@@ -158,8 +158,8 @@ public class LoadingOverlayMixin {
         int textureWidth = lastSheet ? FRAME_WIDTH : SHEET_WIDTH;
         int textureHeight = lastSheet ? FRAME_HEIGHT : SHEET_HEIGHT;
 
-        int width = Math.round(screenWidth * SCALE);
-        int height = Math.round(screenHeight * SCALE);
+        int height = (int) (Math.min(screenWidth / ASPECT_RATIO, screenHeight) * SCALE);
+        int width = (int) (height * ASPECT_RATIO);
         int x = (screenWidth - width) / 2;
         int y = (screenHeight - height) / 2;
 
@@ -178,8 +178,8 @@ public class LoadingOverlayMixin {
         int screenHeight = graphics.guiHeight();
         long now = Util.getMillis();
 
-        int width = Math.round(screenWidth * SCALE);
-        int height = Math.round(screenHeight * SCALE);
+        int height = (int) (Math.min(screenWidth / ASPECT_RATIO, screenHeight) * SCALE);
+        int width = (int) (height * ASPECT_RATIO);
         int x = (screenWidth - width) / 2;
         int y = (screenHeight - height) / 2;
 
