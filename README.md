@@ -16,6 +16,8 @@
 
 It replaces Minecraft's static loading overlay with an animation which plays while the game loads resources.
 
+<iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/8d5V-FLJiYw" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+
 ## 📜 CREDITS
 
 The animation is taken from [Minecraft Wiki - Mojang Studios](https://minecraft.fandom.com/wiki/Mojang_Studios)
