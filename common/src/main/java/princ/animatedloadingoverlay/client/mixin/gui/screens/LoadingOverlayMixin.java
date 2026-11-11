@@ -9,7 +9,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.LoadingOverlay;
 import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.texture.*;
+import net.minecraft.client.renderer.texture.SimpleTexture;
 import net.minecraft.client.resources.metadata.texture.TextureMetadataSection;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ReloadInstance;
@@ -54,6 +54,9 @@ public class LoadingOverlayMixin {
     @Shadow
     private long fadeInStart;
 
+    @Unique
+    private long animatedLoadingOverlay$progressBarFadeInStart = -1L;
+
     @Shadow
     private static int replaceAlpha(int color, int alpha) {
         throw new UnsupportedOperationException("Implemented via mixin");
@@ -64,7 +67,6 @@ public class LoadingOverlayMixin {
 
     @Unique
     SoundInstance animatedLoadingOverlay$sound;
-
 
     @Inject(method = "<init>", at = @At("TAIL"))
     void animatedLoadingOverlay$init(Minecraft minecraft, ReloadInstance reload, Consumer<Optional<Throwable>> onFinish, boolean fadeIn, CallbackInfo callbackInfo) {
@@ -78,6 +80,28 @@ public class LoadingOverlayMixin {
         for (ResourceLocation sheet : SHEETS) {
             minecraft.getTextureManager().register(sheet, new LogoTexture(sheet));
         }
+    }
+
+    @WrapOperation(
+            method = "render",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/gui/GuiGraphics;fill(Lnet/minecraft/client/renderer/RenderType;IIIII)V"
+            )
+    )
+    void animatedLoadingOverlay$fill(GuiGraphics graphics, RenderType renderType, int minX, int minY, int maxX, int maxY, int color, Operation<Void> original) {
+        this.animatedLoadingOverlay$fill(graphics);
+    }
+
+    @WrapOperation(
+            method = "render",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lcom/mojang/blaze3d/systems/RenderSystem;blendFunc(II)V"
+            )
+    )
+    void animatedLoadingOverlay$blendFunc(int sourceFactor, int destFactor, Operation<Void> original) {
+        RenderSystem.defaultBlendFunc();
     }
 
     @WrapOperation(
@@ -107,69 +131,26 @@ public class LoadingOverlayMixin {
             method = "render",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/client/gui/GuiGraphics;fill(Lnet/minecraft/client/renderer/RenderType;IIIII)V"
+                    target = "Lnet/minecraft/client/gui/screens/LoadingOverlay;drawProgressBar(Lnet/minecraft/client/gui/GuiGraphics;IIIIF)V"
             )
     )
-    void fill(GuiGraphics graphics, RenderType renderType, int minX, int minY, int maxX, int maxY, int color, Operation<Void> original) {
-        this.animatedLoadingOverlay$fill(graphics);
-    }
-
-    @WrapOperation(
-            method = "render",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Lcom/mojang/blaze3d/systems/RenderSystem;blendFunc(II)V"
-            )
-    )
-    void animatedLoadingOverlay$blendFunc(int sourceFactor, int destFactor, Operation<Void> original) {
-        RenderSystem.defaultBlendFunc();
-    }
-
-
-    @Unique
-    void animatedLoadingOverlay$blit(GuiGraphics graphics) {
-        int screenWidth = graphics.guiWidth();
-        int screenHeight = graphics.guiHeight();
+    void animatedLoadingOverlay$extractProgressBar(LoadingOverlay instance, GuiGraphics graphics, int x0, int y0, int x1, int y1, float fade, Operation<Void> original) {
         long now = Util.getMillis();
 
-        if (this.animatedLoadingOverlay$animationStart == -1L) {
-            this.animatedLoadingOverlay$animationStart = now;
-            this.animatedLoadingOverlay$sound.play();
-            if (this.reload instanceof SimpleReloadInstanceDuck reloadDuck) {
-                reloadDuck.animatedLoadingOverlay$animationFinished(false);
+        boolean fadeIn = this.reload instanceof SimpleReloadInstanceDuck reloadDuck && reloadDuck.animatedLoadingOverlay$animationFinished();
+        float alpha;
+
+        if (fadeIn) {
+            if (this.animatedLoadingOverlay$progressBarFadeInStart == -1L) {
+                this.animatedLoadingOverlay$progressBarFadeInStart = now;
             }
+            float fadeInAnim = this.animatedLoadingOverlay$progressBarFadeInStart > -1L ? (float) (now - this.animatedLoadingOverlay$progressBarFadeInStart) / 500.0F : -1.0F;
+            alpha = Mth.clamp(fadeInAnim, 0.0F, 1.0F);
+        } else {
+            alpha = 0.0F;
         }
 
-        long frame = ((now - this.animatedLoadingOverlay$animationStart) * FPS) / 1000L;
-        int frameIndex = (int) Math.min(frame, FRAMES - 1);
-
-        int sheetIndex = frameIndex / FRAMES_PER_SHEET;
-        int frameInSheet = frameIndex % FRAMES_PER_SHEET;
-
-        ResourceLocation texture = SHEETS[sheetIndex];
-        boolean lastSheet = sheetIndex == SHEET_COUNT - 1;
-
-        int col = frameInSheet % COLS;
-        int row = frameInSheet / COLS;
-
-        float u = lastSheet ? 0.0F : col * FRAME_WIDTH;
-        float v = lastSheet ? 0.0F : row * FRAME_HEIGHT;
-
-        int textureWidth = lastSheet ? FRAME_WIDTH : SHEET_WIDTH;
-        int textureHeight = lastSheet ? FRAME_HEIGHT : SHEET_HEIGHT;
-
-        int height = (int) (Math.min(screenWidth / ASPECT_RATIO, screenHeight) * SCALE);
-        int width = (int) (height * ASPECT_RATIO);
-        int x = (screenWidth - width) / 2;
-        int y = (screenHeight - height) / 2;
-
-        graphics.blit(texture, x, y, width, height, u, v, FRAME_WIDTH, FRAME_HEIGHT, textureWidth, textureHeight);
-
-        if (frameIndex >= FRAMES - 1) {
-            if (this.reload instanceof SimpleReloadInstanceDuck reloadDuck) {
-                reloadDuck.animatedLoadingOverlay$animationFinished(true);
-            }
-        }
+        original.call(instance, graphics, x0, y0, x1, y1, fade * alpha);
     }
 
     @Unique
@@ -197,10 +178,56 @@ public class LoadingOverlayMixin {
 
         int color = replaceAlpha(LOGO_BACKGROUND_COLOR, alpha);
 
-        graphics.fill(RenderType.guiOverlay(), 0, 0, screenWidth, y, color);
-        graphics.fill(RenderType.guiOverlay(), 0, y + height, screenWidth, screenHeight, color);
-        graphics.fill(RenderType.guiOverlay(), 0, y, x, y + height, color);
-        graphics.fill(RenderType.guiOverlay(), x + width, y, screenWidth, y + height, color);
+        graphics.fill(0, 0, screenWidth, y, color);
+        graphics.fill(0, y + height, screenWidth, screenHeight, color);
+        graphics.fill(0, y, x, y + height, color);
+        graphics.fill(x + width, y, screenWidth, y + height, color);
+    }
+
+    @Unique
+    void animatedLoadingOverlay$blit(GuiGraphics graphics) {
+        int screenWidth = graphics.guiWidth();
+        int screenHeight = graphics.guiHeight();
+        long now = Util.getMillis();
+
+        if (this.animatedLoadingOverlay$animationStart == -1L) {
+            this.animatedLoadingOverlay$animationStart = now;
+            this.animatedLoadingOverlay$sound.play();
+            if (this.reload instanceof SimpleReloadInstanceDuck reloadDuck) {
+                reloadDuck.animatedLoadingOverlay$animationFinished(false);
+            }
+        }
+
+        long frame = ((now - this.animatedLoadingOverlay$animationStart) * FPS) / 1000L;
+        int frameIndex = (int) Math.min(frame, FRAMES - 1);
+
+        int sheetIndex = frameIndex / FRAMES_PER_SHEET;
+        int frameInSheet = frameIndex % FRAMES_PER_SHEET;
+
+        ResourceLocation texture = SHEETS[sheetIndex];
+        boolean endSheet = sheetIndex == SHEET_COUNT - 1;
+
+        int col = frameInSheet % COLS;
+        int row = frameInSheet / COLS;
+
+        float u = endSheet ? 0.0F : col * FRAME_WIDTH;
+        float v = endSheet ? 0.0F : row * FRAME_HEIGHT;
+
+        int textureWidth = endSheet ? FRAME_WIDTH : SHEET_WIDTH;
+        int textureHeight = endSheet ? FRAME_HEIGHT : SHEET_HEIGHT;
+
+        int height = (int) (Math.min(screenWidth / ASPECT_RATIO, screenHeight) * SCALE);
+        int width = (int) (height * ASPECT_RATIO);
+        int x = (screenWidth - width) / 2;
+        int y = (screenHeight - height) / 2;
+
+        graphics.blit(texture, x, y, width, height, u, v, FRAME_WIDTH, FRAME_HEIGHT, textureWidth, textureHeight);
+
+        if (frameIndex >= FRAMES - 1) {
+            if (this.reload instanceof SimpleReloadInstanceDuck reloadDuck) {
+                reloadDuck.animatedLoadingOverlay$animationFinished(true);
+            }
+        }
     }
 
     static class LogoTexture extends SimpleTexture {
@@ -212,7 +239,7 @@ public class LoadingOverlayMixin {
         }
 
         @Override
-        protected TextureImage getTextureImage(ResourceManager resourceManager) {
+        public TextureImage getTextureImage(ResourceManager resourceManager) {
             Path path = Path.of("assets/", this.texture.getNamespace(), this.texture.getPath());
             try (InputStream resource = this.getClass().getClassLoader().getResourceAsStream(path.toString())) {
                 if (resource == null) {
