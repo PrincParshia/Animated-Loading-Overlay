@@ -17,9 +17,6 @@ public class ClientHooksMixin {
 
     @WrapMethod(method = "createLoadingOverlay")
     private static Overlay animatedLoadingOverlay$createLoadingOverlay(Minecraft minecraft, ReloadInstance reloadInstance, Consumer<Optional<Throwable>> errorHandler, boolean fadeIn, Operation<Overlay> original) {
-        if (!(minecraft.getOverlay() instanceof LoadingOverlay)) {
-            return new LoadingOverlay(minecraft, reloadInstance, errorHandler, fadeIn);
-        }
-        return original.call(minecraft, reloadInstance, errorHandler, fadeIn);
+        return new LoadingOverlay(minecraft, reloadInstance, errorHandler, fadeIn);
     }
 }

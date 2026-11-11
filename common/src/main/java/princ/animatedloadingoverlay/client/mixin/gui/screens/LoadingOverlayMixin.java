@@ -57,17 +57,19 @@ public class LoadingOverlayMixin {
     @Shadow
     private long fadeInStart;
 
+    @Unique
+    private long animatedLoadingOverlay$progressBarFadeInStart = -1L;
+
     @Shadow
     private static int replaceAlpha(int color, int alpha) {
         throw new UnsupportedOperationException("Implemented via mixin");
     }
 
     @Unique
-    private long animatedLoadingOverlay$animationStart = -1L;
+    long animatedLoadingOverlay$animationStart = -1L;
 
     @Unique
-    private SoundInstance animatedLoadingOverlay$sound;
-
+    SoundInstance animatedLoadingOverlay$sound;
 
     @Inject(method = "<init>", at = @At("TAIL"))
     void animatedLoadingOverlay$init(Minecraft minecraft, ReloadInstance reload, Consumer<Optional<Throwable>> onFinish, boolean fadeIn, CallbackInfo callbackInfo) {
@@ -87,11 +89,22 @@ public class LoadingOverlayMixin {
             method = "render",
             at = @At(
                     value = "INVOKE",
+                    target = "Lnet/minecraft/client/gui/GuiGraphics;fill(IIIII)V"
+            )
+    )
+    void animatedLoadingOverlay$fill(GuiGraphics graphics, int x0, int y0, int x1, int y1, int col, Operation<Void> original) {
+        this.animatedLoadingOverlay$fill(graphics);
+    }
+
+    @WrapOperation(
+            method = "render",
+            at = @At(
+                    value = "INVOKE",
                     target = "Lnet/minecraft/client/gui/GuiGraphics;blit(Lcom/mojang/blaze3d/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIFFIIIIIII)V",
                     ordinal = 0
             )
     )
-    void animatedLoadingOverlay$blit(GuiGraphics graphics, RenderPipeline pipeline, Identifier atlasLocation, int x, int y, float u, float v, int width, int height, int uWidth, int vHeight, int textureWidth, int textureHeight, int color, Operation<Void> original) {
+    void animatedLoadingOverlay$blit(GuiGraphics graphics, RenderPipeline renderPipeline, Identifier texture, int x, int y, float u, float v, int width, int height, int srcWidth, int srcHeight, int textureWidth, int textureHeight, int color, Operation<Void> original) {
         this.animatedLoadingOverlay$blit(graphics, color);
     }
 
@@ -103,18 +116,64 @@ public class LoadingOverlayMixin {
                     ordinal = 1
             )
     )
-    void animatedLoadingOverlay$skipBlit(GuiGraphics graphics, RenderPipeline pipeline, Identifier atlasLocation, int x, int y, float u, float v, int width, int height, int uWidth, int vHeight, int textureWidth, int textureHeight, int color, Operation<Void> original) {
+    void animatedLoadingOverlay$skipBlit(GuiGraphics graphics, RenderPipeline renderPipeline, Identifier texture, int x, int y, float u, float v, int width, int height, int srcWidth, int srcHeight, int textureWidth, int textureHeight, int color, Operation<Void> original) {
     }
 
     @WrapOperation(
             method = "render",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/client/gui/GuiGraphics;fill(IIIII)V"
+                    target = "Lnet/minecraft/client/gui/screens/LoadingOverlay;drawProgressBar(Lnet/minecraft/client/gui/GuiGraphics;IIIIF)V"
             )
     )
-    void animatedLoadingOverlay$fill(GuiGraphics graphics, int minX, int minY, int maxX, int maxY, int color, Operation<Void> original) {
-        this.animatedLoadingOverlay$fill(graphics);
+    void animatedLoadingOverlay$extractProgressBar(LoadingOverlay instance, GuiGraphics graphics, int x0, int y0, int x1, int y1, float fade, Operation<Void> original) {
+        long now = Util.getMillis();
+
+        boolean fadeIn = this.reload instanceof SimpleReloadInstanceDuck reloadDuck && reloadDuck.animatedLoadingOverlay$animationFinished();
+        float alpha;
+
+        if (fadeIn) {
+            if (this.animatedLoadingOverlay$progressBarFadeInStart == -1L) {
+                this.animatedLoadingOverlay$progressBarFadeInStart = now;
+            }
+            float fadeInAnim = this.animatedLoadingOverlay$progressBarFadeInStart > -1L ? (float) (now - this.animatedLoadingOverlay$progressBarFadeInStart) / 500.0F : -1.0F;
+            alpha = Mth.clamp(fadeInAnim, 0.0F, 1.0F);
+        } else {
+            alpha = 0.0F;
+        }
+
+        original.call(instance, graphics, x0, y0, x1, y1, fade * alpha);
+    }
+
+    @Unique
+    void animatedLoadingOverlay$fill(GuiGraphics graphics) {
+        int screenWidth = graphics.guiWidth();
+        int screenHeight = graphics.guiHeight();
+        long now = Util.getMillis();
+
+        int height = (int) (Math.min(screenWidth / ASPECT_RATIO, screenHeight) * SCALE);
+        int width = (int) (height * ASPECT_RATIO);
+        int x = (screenWidth - width) / 2;
+        int y = (screenHeight - height) / 2;
+
+        float fadeOutAnim = this.fadeOutStart > -1L ? (float) (now - this.fadeOutStart) / 1000.0F : -1.0F;
+        float fadeInAnim = this.fadeInStart > -1L ? (float) (now - this.fadeInStart) / 500.0F : -1.0F;
+        int alpha;
+
+        if (fadeOutAnim >= 1.0F) {
+            alpha = Mth.ceil((1.0F - Mth.clamp(fadeOutAnim - 1.0F, 0.0F, 1.0F)) * 255);
+        } else if (this.fadeIn) {
+            alpha = Mth.ceil(Mth.clamp(fadeInAnim, 0.0F, 1.0F) * 255);
+        } else {
+            alpha = 255;
+        }
+
+        int color = replaceAlpha(LOGO_BACKGROUND_COLOR, alpha);
+
+        graphics.fill(0, 0, screenWidth, y, color);
+        graphics.fill(0, y + height, screenWidth, screenHeight, color);
+        graphics.fill(0, y, x, y + height, color);
+        graphics.fill(x + width, y, screenWidth, y + height, color);
     }
 
     @Unique
@@ -161,37 +220,6 @@ public class LoadingOverlayMixin {
                 reloadDuck.animatedLoadingOverlay$animationFinished(true);
             }
         }
-    }
-
-    @Unique
-    void animatedLoadingOverlay$fill(GuiGraphics graphics) {
-        int screenWidth = graphics.guiWidth();
-        int screenHeight = graphics.guiHeight();
-        long now = Util.getMillis();
-
-        int height = (int) (Math.min(screenWidth / ASPECT_RATIO, screenHeight) * SCALE);
-        int width = (int) (height * ASPECT_RATIO);
-        int x = (screenWidth - width) / 2;
-        int y = (screenHeight - height) / 2;
-
-        float fadeOutAnim = this.fadeOutStart > -1L ? (float) (now - this.fadeOutStart) / 1000.0F : -1.0F;
-        float fadeInAnim = this.fadeInStart > -1L ? (float) (now - this.fadeInStart) / 500.0F : -1.0F;
-        int alpha;
-
-        if (fadeOutAnim >= 1.0F) {
-            alpha = Mth.ceil((1.0F - Mth.clamp(fadeOutAnim - 1.0F, 0.0F, 1.0F)) * 255);
-        } else if (this.fadeIn) {
-            alpha = Mth.ceil(Mth.clamp(fadeInAnim, 0.0F, 1.0F) * 255);
-        } else {
-            alpha = 255;
-        }
-
-        int color = replaceAlpha(LOGO_BACKGROUND_COLOR, alpha);
-
-        graphics.fill(0, 0, screenWidth, y, color);
-        graphics.fill(0, y + height, screenWidth, screenHeight, color);
-        graphics.fill(0, y, x, y + height, color);
-        graphics.fill(x + width, y, screenWidth, y + height, color);
     }
 
     static class LogoTexture extends ReloadableTexture {
