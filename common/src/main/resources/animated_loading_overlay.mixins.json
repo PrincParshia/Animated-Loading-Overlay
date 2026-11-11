@@ -4,6 +4,7 @@
     "package": "princ.animatedloadingoverlay.client.mixin",
     "compatibilityLevel": "JAVA_25",
     "client": [
+        "MinecraftMixin",
         "gui.screens.LoadingOverlayMixin",
         "pack.resources.SimpleReloadInstanceMixin"
     ],

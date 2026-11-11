@@ -20,15 +20,10 @@ import java.util.concurrent.Executor;
 public class SimpleReloadInstanceMixin implements SimpleReloadInstanceDuck {
 
     @Unique
-    private final CompletableFuture<Unit> animatedLoadingOverlay$allPreparations = new CompletableFuture<>();
+    private PreparationBarrier animatedLoadingOverlay$initialTask;
 
     @Unique
     private boolean animatedLoadingOverlay$animationFinished;
-
-    @Override
-    public CompletableFuture<Unit> animatedLoadingOverlay$allPreparations() {
-        return this.animatedLoadingOverlay$allPreparations;
-    }
 
     @Override
     public boolean animatedLoadingOverlay$animationFinished() {
@@ -40,7 +35,7 @@ public class SimpleReloadInstanceMixin implements SimpleReloadInstanceDuck {
         this.animatedLoadingOverlay$animationFinished = finished;
 
         if (finished) {
-            this.animatedLoadingOverlay$allPreparations.complete(Unit.INSTANCE);
+            this.animatedLoadingOverlay$initialTask.complete(Unit.INSTANCE);
         }
     }
 
@@ -51,7 +46,11 @@ public class SimpleReloadInstanceMixin implements SimpleReloadInstanceDuck {
                     target = "Lnet/minecraft/server/packs/resources/SimpleReloadInstance;prepareTasks(Ljava/util/concurrent/Executor;Ljava/util/concurrent/Executor;Lnet/minecraft/server/packs/resources/ResourceManager;Ljava/util/List;Lnet/minecraft/server/packs/resources/SimpleReloadInstance$StateFactory;Ljava/util/concurrent/CompletableFuture;)Ljava/util/concurrent/CompletableFuture;"
             )
     )
-    <S> CompletableFuture<List<S>> animatedLoadingOverlay$delayPreparation(SimpleReloadInstance<S> instance, Executor taskExecutor, Executor mainThreadExecutor, ResourceManager resourceManager, List<PreparableReloadListener> listeners, @Coerce Object stateFactory, CompletableFuture<?> initialTask, Operation<CompletableFuture<List<S>>> original) {
-        return this.animatedLoadingOverlay$allPreparations.thenCompose(ignored -> original.call(instance, taskExecutor, mainThreadExecutor, resourceManager, listeners, stateFactory, initialTask));
+    <S> CompletableFuture<List<S>> animatedLoadingOverlay$delayPreparation(SimpleReloadInstance<S> reloadInstance, Executor taskExecutor, Executor mainThreadExecutor, ResourceManager resourceManager, List<PreparableReloadListener> listeners, @Coerce Object stateFactory, CompletableFuture<?> initialTask, Operation<CompletableFuture<List<S>>> original) {
+        if (initialTask instanceof PreparationBarrier) {
+            this.animatedLoadingOverlay$initialTask = (PreparationBarrier) initialTask;
+            return initialTask.thenCompose(ignored -> original.call(reloadInstance, taskExecutor, mainThreadExecutor, resourceManager, listeners, stateFactory, initialTask));
+        }
+        return original.call(reloadInstance, taskExecutor, mainThreadExecutor, resourceManager, listeners, stateFactory, initialTask);
     }
 }
